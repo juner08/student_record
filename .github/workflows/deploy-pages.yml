@@ -46,6 +46,9 @@ jobs:
           rm -f build/web/.last_build_id build/web/flutter_service_worker.js
 
       - uses: actions/configure-pages@v5
+        with:
+          # Lets the workflow switch Pages on by itself on a fresh repo.
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
