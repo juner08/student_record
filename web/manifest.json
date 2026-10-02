@@ -1,0 +1,57 @@
+{
+    "name": "Student Record Management",
+    "short_name": "Student Record",
+    "id": "student_record",
+    "start_url": ".",
+    "scope": ".",
+    "display": "standalone",
+    "display_override": ["window-controls-overlay", "standalone", "browser"],
+    "background_color": "#F2F5F9",
+    "theme_color": "#1B5E9E",
+    "description": "CSE101 Student Record Management - section based class records with grades, attendance and dashboard.",
+    "lang": "en",
+    "dir": "ltr",
+    "categories": ["education", "productivity"],
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Sections",
+            "short_name": "Sections",
+            "description": "Go to the section list",
+            "url": "./#/",
+            "icons": [
+                {
+                    "src": "icons/Icon-192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
+        }
+    ]
+}

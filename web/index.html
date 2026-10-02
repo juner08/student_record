@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="CSE101 Student Record Management - section based class records with grades, attendance and dashboard.">
+
+  <meta name="theme-color" content="#1B5E9E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Student Record">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Student Record Management</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #F2F5F9;
+      overscroll-behavior: none;
+    }
+
+    #pwa-loader {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 18px;
+      font-family: Roboto, "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: #1B5E9E;
+      z-index: 1;
+    }
+
+    #pwa-loader .ring {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #D3DAE3;
+      border-top-color: #1B5E9E;
+      border-radius: 50%;
+      animation: pwa-spin 0.9s linear infinite;
+    }
+
+    #pwa-loader .label {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    @keyframes pwa-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ---- Install app button / banner ------------------------------- */
+    #pwa-install {
+      position: fixed;
+      left: 50%;
+      bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+      transform: translateX(-50%) translateY(140%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: min(520px, calc(100vw - 24px));
+      padding: 10px 10px 10px 16px;
+      border: 0;
+      border-radius: 14px;
+      background: #ffffff;
+      box-shadow: 0 8px 28px rgba(16, 42, 76, 0.24);
+      font-family: Roboto, "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1F2933;
+      text-align: left;
+      opacity: 0;
+      transition: transform 0.28s ease, opacity 0.28s ease;
+      z-index: 2147483000;
+    }
+
+    #pwa-install.visible {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    #pwa-install .pwa-action {
+      flex: 0 0 auto;
+      padding: 9px 16px;
+      border: 0;
+      border-radius: 10px;
+      background: #1B5E9E;
+      color: #ffffff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    #pwa-install .pwa-action:hover {
+      background: #164C80;
+    }
+
+    #pwa-install .pwa-close {
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: #6B7A8C;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    #pwa-install .pwa-close:hover {
+      background: #EDF1F6;
+    }
+  </style>
+</head>
+<body>
+  <div id="pwa-loader">
+    <div class="ring"></div>
+    <div class="label">Loading Student Record&hellip;</div>
+  </div>
+
+  <div id="pwa-install" role="dialog" aria-label="Install this app">
+    <span id="pwa-install-text">Install this app for offline use.</span>
+    <button id="pwa-install-action" class="pwa-action" type="button">Install</button>
+    <button id="pwa-install-close" class="pwa-close" type="button" aria-label="Dismiss">&times;</button>
+  </div>
+
+  <script>
+    (function () {
+      var loader = document.getElementById('pwa-loader');
+      var bar = document.getElementById('pwa-install');
+      var barText = document.getElementById('pwa-install-text');
+      var barAction = document.getElementById('pwa-install-action');
+      var barClose = document.getElementById('pwa-install-close');
+
+      loader.style.display = 'flex';
+      window.addEventListener('flutter-first-frame', function () {
+        loader.style.display = 'none';
+      });
+
+      function dismiss() {
+        bar.classList.remove('visible');
+        window.setTimeout(function () { bar.style.display = 'none'; }, 300);
+      }
+
+      function show(text, label, onClick) {
+        barText.textContent = text;
+        barAction.textContent = label;
+        barAction.onclick = function () {
+          dismiss();
+          onClick();
+        };
+        bar.style.display = 'flex';
+        // Force reflow so the transition runs on first show.
+        void bar.offsetWidth;
+        bar.classList.add('visible');
+      }
+
+      barClose.addEventListener('click', dismiss);
+
+      // ---- Install prompt (Chrome / Edge / Android) --------------------
+      var deferredPrompt = null;
+      var dismissedKey = 'student_record_install_dismissed';
+
+      window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        deferredPrompt = event;
+        if (window.localStorage.getItem(dismissedKey) === '1') { return; }
+        show('Install Student Record on this device.', 'Install', function () {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then(function () { deferredPrompt = null; });
+        });
+      });
+
+      window.addEventListener('appinstalled', function () {
+        deferredPrompt = null;
+        dismiss();
+      });
+
+      // ---- iOS has no install prompt, so show manual instructions ------
+      var isIos = /iPad|iPhone|iPod/.test(window.navigator.userAgent);
+      var isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+
+      if (isIos && !isStandalone && window.localStorage.getItem(dismissedKey) !== '1') {
+        window.setTimeout(function () {
+          show('Tap the Share button, then "Add to Home Screen".', 'How', function () {});
+        }, 2500);
+      }
+
+      window.pwaShowInstallBar = function (text, label, onClick) { show(text, label, onClick); };
+
+      // ---- Service worker: offline support + install criteria ----------
+      if ('serviceWorker' in window.navigator) {
+        window.addEventListener('load', function () {
+          var url = new URL('sw.js', document.baseURI).pathname;
+          window.navigator.serviceWorker.register(url).catch(function (error) {
+            console.warn('Service worker registration failed:', error);
+          });
+        });
+      }
+    })();
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
