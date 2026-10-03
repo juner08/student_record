@@ -9,7 +9,8 @@ class Section {
   String name;
   String adviser;
 
-  String get label => name.toUpperCase();
+  /// The name exactly as the user typed it.
+  String get label => name;
 }
 
 const List<String> kPrograms = <String>[

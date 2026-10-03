@@ -677,8 +677,8 @@ class _ProfileTab extends StatelessWidget {
                 ),
                 _infoRow(
                   Icons.image_outlined,
-                  'Picture link',
-                  student.pictureUrl.isEmpty ? 'None' : student.pictureUrl,
+                  'Picture',
+                  _pictureLabel(student),
                 ),
               ],
             ),
@@ -722,6 +722,18 @@ class _ProfileTab extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  /// The picture value can be a long base64 string, so describe it instead of
+  /// printing it in the profile list.
+  static String _pictureLabel(Student student) {
+    final String value = student.pictureUrl.trim();
+    if (value.isEmpty) return 'None';
+    if (value.startsWith('data:')) return 'Uploaded photo';
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return 'Photo link';
+    }
+    return 'None';
   }
 
   Widget _infoRow(IconData icon, String label, String value) {

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../models/student.dart';
+import 'student_picture.dart';
 
 /// Student picture with an initials fallback so the app still looks fine
-/// without an image (offline or invalid picture link).
+/// without an image (offline, not uploaded yet, or an invalid picture value).
 class StudentAvatar extends StatelessWidget {
   const StudentAvatar({super.key, required this.student, this.radius = 24});
 
@@ -30,31 +31,13 @@ class StudentAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double size = radius * 2;
-    final Widget fallback = _Initials(
-      text: student.initials,
-      size: size,
-      background: _background,
-    );
-
-    if (student.pictureUrl.trim().isEmpty) return fallback;
-
-    return ClipOval(
-      child: Image.network(
-        student.pictureUrl,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (BuildContext context, Object error, StackTrace? stack) =>
-            fallback,
-        loadingBuilder: (
-          BuildContext context,
-          Widget child,
-          ImageChunkEvent? progress,
-        ) {
-          if (progress == null) return child;
-          return fallback;
-        },
+    return StudentPicture(
+      pictureUrl: student.pictureUrl,
+      size: radius * 2,
+      fallback: _Initials(
+        text: student.initials,
+        size: radius * 2,
+        background: _background,
       ),
     );
   }

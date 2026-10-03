@@ -23,7 +23,11 @@ class Student {
   String gender;
   String sectionId;
   String contact;
+
+  /// The student's picture. Either an `http(s)` link or a `data:` URI holding
+  /// an uploaded image. An empty string means "no picture".
   String pictureUrl;
+
   final List<ScoreEntry> scores;
   final List<AttendanceEntry> attendance;
 

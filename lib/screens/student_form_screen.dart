@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../data/record_manager.dart';
 import '../models/section.dart';
 import '../models/student.dart';
+import '../utils/picture_service.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/student_picture.dart';
 
 const List<String> kGenders = <String>['Male', 'Female', 'Other'];
 
@@ -29,14 +32,21 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
-  final TextEditingController _pictureController = TextEditingController();
+  final TextEditingController _linkController = TextEditingController();
 
   String? _gender;
   String? _sectionId;
 
+  /// The value stored on the student: an uploaded `data:` image or an
+  /// `http(s)` link.
+  String _picture = '';
+  bool _pickingPicture = false;
+
   RecordManager get _db => RecordManager.instance;
   Student? get _student =>
       widget.studentId == null ? null : _db.studentById(widget.studentId!);
+
+  bool get _hasPicture => _picture.trim().isNotEmpty;
 
   @override
   void initState() {
@@ -48,7 +58,13 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
     _nameController.text = student?.fullName ?? '';
     _ageController.text = student?.age.toString() ?? '';
     _contactController.text = student?.contact ?? '';
-    _pictureController.text = student?.pictureUrl ?? '';
+    _picture = student?.pictureUrl ?? '';
+    _linkController.text = _isLink(_picture) ? _picture : '';
+  }
+
+  static bool _isLink(String value) {
+    final String text = value.trim();
+    return text.startsWith('http://') || text.startsWith('https://');
   }
 
   @override
@@ -57,8 +73,47 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
     _nameController.dispose();
     _ageController.dispose();
     _contactController.dispose();
-    _pictureController.dispose();
+    _linkController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickPicture(ImageSource source) async {
+    if (_pickingPicture) return;
+    setState(() => _pickingPicture = true);
+    final PicturePickResult result = await PictureService.instance.pick(source);
+    if (!mounted) return;
+    setState(() => _pickingPicture = false);
+    if (result.isCancelled) return;
+    final String? value = result.value;
+    if (value == null) {
+      _showMessage(result.error ?? 'That picture could not be used.');
+      return;
+    }
+    setState(() {
+      _picture = value;
+      // The picture is uploaded now, so the optional link field is cleared.
+      _linkController.clear();
+    });
+    _formKey.currentState?.validate();
+  }
+
+  void _removePicture() {
+    setState(() {
+      _picture = '';
+      _linkController.clear();
+    });
+    _formKey.currentState?.validate();
+  }
+
+  void _onLinkChanged(String value) {
+    _picture = value.trim();
+    setState(() {});
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _save() {
@@ -72,7 +127,7 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
         gender: _gender ?? kGenders.first,
         sectionId: _sectionId ?? widget.sectionId,
         contact: _contactController.text,
-        pictureUrl: _pictureController.text,
+        pictureUrl: _picture,
       );
     } else {
       student
@@ -82,7 +137,9 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
         ..gender = _gender ?? student.gender
         ..sectionId = _sectionId ?? student.sectionId
         ..contact = _contactController.text.trim()
-        ..pictureUrl = _pictureController.text.trim();
+        ..pictureUrl = _picture.trim();
+      // The record was edited in place, so ask the store to persist it.
+      _db.save();
     }
     Navigator.of(context).pop(true);
   }
@@ -178,6 +235,7 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
                         controller: _nameController,
                         textCapitalization: TextCapitalization.words,
                         textInputAction: TextInputAction.next,
+                        onChanged: (String value) => setState(() {}),
                         decoration: const InputDecoration(
                           labelText: 'Full name *',
                           hintText: 'Juan Dela Cruz',
@@ -287,62 +345,102 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
   }
 
   Widget _buildPictureCard(BuildContext context) {
-    final String url = _pictureController.text.trim();
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Stack(
-              alignment: Alignment.bottomRight,
+            const SectionHeader(
+              title: 'Profile picture',
+              icon: Icons.photo_camera_outlined,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Container(
-                  width: 92,
-                  height: 92,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: scheme.primary.withValues(alpha: 0.10),
-                    shape: BoxShape.circle,
-                  ),
-                  child: url.isEmpty
-                      ? Icon(Icons.person, size: 48, color: scheme.primary)
-                      : Image.network(
-                          url,
-                          fit: BoxFit.cover,
-                          errorBuilder: (
-                            BuildContext context,
-                            Object error,
-                            StackTrace? stack,
-                          ) =>
-                              Icon(Icons.broken_image, size: 44, color: scheme.primary),
-                        ),
+                // Preview of the selected picture (object-fit: cover inside a
+                // circle, so a photo is never stretched).
+                StudentPicture(
+                  key: const ValueKey<String>('picture-preview'),
+                  pictureUrl: _picture,
+                  size: 92,
+                  fallback: _PicturePlaceholder(name: _nameController.text),
                 ),
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: scheme.primary,
-                    shape: BoxShape.circle,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        _pictureDescription(),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: Color(0xFF5A6472),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: <Widget>[
+                          FilledButton.tonalIcon(
+                            key: const ValueKey<String>('pick-picture-gallery'),
+                            onPressed: _pickingPicture
+                                ? null
+                                : () => _pickPicture(ImageSource.gallery),
+                            icon: _pickingPicture
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.photo_library_outlined),
+                            label: const Text('Choose photo'),
+                          ),
+                          if (PictureService.hasCamera)
+                            OutlinedButton.icon(
+                              key:
+                                  const ValueKey<String>('pick-picture-camera'),
+                              onPressed: _pickingPicture
+                                  ? null
+                                  : () => _pickPicture(ImageSource.camera),
+                              icon: const Icon(Icons.photo_camera_outlined),
+                              label: const Text('Camera'),
+                            ),
+                          if (_hasPicture)
+                            TextButton.icon(
+                              key: const ValueKey<String>('remove-picture'),
+                              onPressed: _removePicture,
+                              icon: const Icon(Icons.delete_outline),
+                              label: const Text('Remove'),
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.photo_camera,
-                      size: 16, color: Colors.white),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextFormField(
               key: const ValueKey<String>('field-picture'),
-              controller: _pictureController,
+              controller: _linkController,
               keyboardType: TextInputType.url,
-              onChanged: (String value) => setState(() {}),
+              onChanged: _onLinkChanged,
               decoration: const InputDecoration(
                 labelText: 'Picture link (optional)',
                 hintText: 'https://...',
+                helperText: 'Or upload a photo with "Choose photo" above',
                 prefixIcon: Icon(Icons.link),
               ),
               validator: (String? value) {
                 final String text = (value ?? '').trim();
-                if (text.isNotEmpty && !text.startsWith('http')) {
+                if (text.isEmpty) return null;
+                if (!text.startsWith('http://') &&
+                    !text.startsWith('https://')) {
                   return 'Picture link must start with http';
                 }
                 return null;
@@ -352,5 +450,61 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
         ),
       ),
     );
+  }
+
+  String _pictureDescription() {
+    if (!_hasPicture) {
+      return 'No picture yet. You can upload one or paste a link below.';
+    }
+    if (PictureService.isUploaded(_picture)) {
+      return 'Picture uploaded. It is saved with the student and will still be '
+          'there after a refresh.';
+    }
+    return 'Using the picture from the link below.';
+  }
+}
+
+/// Shown while no picture is selected. Mirrors the initials badge used in the
+/// student list so the form and the record look the same.
+class _PicturePlaceholder extends StatelessWidget {
+  const _PicturePlaceholder({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final String? text = _initials(name);
+    return Container(
+      width: 92,
+      height: 92,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.10),
+        shape: BoxShape.circle,
+      ),
+      child: text == null
+          ? Icon(Icons.person, size: 46, color: scheme.primary)
+          : Text(
+              text,
+              style: TextStyle(
+                color: scheme.primary,
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+    );
+  }
+
+  static String? _initials(String value) {
+    final List<String> parts = value
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((String p) => p.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return null;
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+        .toUpperCase();
   }
 }

@@ -2,6 +2,7 @@ import '../models/attendance.dart';
 import '../models/score.dart';
 import '../models/section.dart';
 import '../models/student.dart';
+import 'record_storage.dart';
 import 'sample_data.dart';
 
 /// Simple dashboard numbers for one section on one date.
@@ -47,6 +48,28 @@ class RecordManager {
     categories.addAll(data.categories);
   }
 
+  /// Replaces everything with the given lists. Used when the saved snapshot is
+  /// read back at start-up.
+  void replaceAll({
+    required List<Section> sections,
+    required List<Student> students,
+    required List<Category> categories,
+  }) {
+    this.sections
+      ..clear()
+      ..addAll(sections);
+    this.students
+      ..clear()
+      ..addAll(students);
+    this.categories
+      ..clear()
+      ..addAll(categories);
+    _counter = 0;
+  }
+
+  /// Remembers the change so it survives an app restart / page refresh.
+  void save() => RecordStorage.instance.scheduleSave(this);
+
   String _newId(String prefix) {
     _counter++;
     return '$prefix${DateTime.now().microsecondsSinceEpoch}_$_counter';
@@ -56,25 +79,43 @@ class RecordManager {
 
   bool sectionNameExists(String name, {String? ignoreId}) {
     final String target = _clean(name);
+    if (target.isEmpty) return false;
     for (final Section section in sections) {
       if (_clean(section.name) == target && section.id != ignoreId) return true;
     }
     return false;
   }
 
+  /// Creates a section from any name the user typed. The text is kept exactly
+  /// as entered (only surrounding spaces are removed) so custom names such as
+  /// "BSCS 3A", "STEM 12-A" or "Section Jupiter" stay readable.
   Section addSection({required String name, String adviser = ''}) {
     final Section section = Section(
       id: _newId('sec_'),
-      name: name.trim().toUpperCase(),
+      name: name.trim().replaceAll(RegExp(r'\s+'), ' '),
       adviser: adviser.trim(),
     );
     sections.add(section);
+    save();
     return section;
+  }
+
+  /// Renames a section while keeping the same rules as [addSection].
+  void updateSection(
+    Section section, {
+    required String name,
+    String? adviser,
+  }) {
+    section
+      ..name = name.trim().replaceAll(RegExp(r'\s+'), ' ')
+      ..adviser = adviser?.trim() ?? section.adviser;
+    save();
   }
 
   void deleteSection(String id) {
     sections.removeWhere((Section s) => s.id == id);
     students.removeWhere((Student s) => s.sectionId == id);
+    save();
   }
 
   Section? sectionById(String id) {
@@ -148,6 +189,7 @@ class RecordManager {
       pictureUrl: pictureUrl.trim(),
     );
     students.add(student);
+    save();
     return student;
   }
 
@@ -160,6 +202,7 @@ class RecordManager {
 
   void deleteStudent(String id) {
     students.removeWhere((Student s) => s.id == id);
+    save();
   }
 
   int rankOf(Student student) {
@@ -201,6 +244,7 @@ class RecordManager {
       kind: kind,
     );
     categories.add(category);
+    save();
     return category;
   }
 
@@ -208,10 +252,12 @@ class RecordManager {
 
   void cycleAttendance(Student student, DateTime date) {
     student.cycleAttendance(date);
+    save();
   }
 
   void setAttendance(Student student, DateTime date, AttendanceStatus status) {
     student.setAttendance(date, status);
+    save();
   }
 
   // ----- Dashboard ------------------------------------------------------

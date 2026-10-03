@@ -4,16 +4,19 @@ A Flutter app that turns a simple list of students into a **complete digital
 class record**: sections, student profiles, scores per category, one-tap
 attendance and a teacher-friendly dashboard.
 
-All data is **simulated with plain `List` / `Map` objects and hardcoded sample
-records in memory** - no Hive, Firebase, SQLite, Firestore, Supabase, MySQL or
-any NoSQL database is used.
+All data is **kept in plain `List` / `Map` objects inside `RecordManager`** - no
+Hive, Firebase, SQLite, Firestore, Supabase, MySQL or any NoSQL database is
+used. `RecordStorage` mirrors those lists to the device / browser storage
+(`shared_preferences`, i.e. localStorage on the web), so sections, students and
+uploaded pictures are still there after a refresh. On the very first launch the
+hardcoded sample records are loaded.
 
 ## Features
 
 | # | Feature | Where |
 |---|---------|-------|
-| 1 | Section-based setup: pick a section first, create new sections, new students are added to the selected section | `screens/section_list_screen.dart`, `screens/section_form_screen.dart` |
-| 2 | Student profile: picture, student ID, full name, age, gender, section, contact | `models/student.dart`, `screens/student_form_screen.dart` |
+| 1 | Section-based setup: pick a section first, type any section name you want (`BSCS 3A`, `STEM 12-A`, `Section Jupiter`), new students are added to the selected section | `screens/section_list_screen.dart`, `screens/section_form_screen.dart` |
+| 2 | Student profile: uploaded photo (or photo link), student ID, full name, age, gender, section, contact | `models/student.dart`, `screens/student_form_screen.dart`, `utils/picture_service.dart` |
 | 3 | Grades: Quiz 1/2/3, Exam, Activity, Assignment, Project + new categories, score and total per category | `models/score.dart`, `screens/score_form_screen.dart` |
 | 4 | One-tap attendance: PRESENT -> ABSENT -> EXCUSED -> PRESENT, with date recording | `Student.cycleAttendance()`, `widgets/status_chip.dart` |
 | 5 | Student list per section: search, picture, name, status, quick view, edit, delete | `screens/student_list_screen.dart` |
@@ -23,7 +26,8 @@ any NoSQL database is used.
 
 ## Widgets used
 
-Text, Icon, Image (`Image.network` with initials fallback), Container, Card,
+Text, Icon, Image (`Image.network` / `Image.memory` with initials fallback),
+Container, Card,
 Button (FilledButton / OutlinedButton / TextButton / IconButton / FAB),
 TextField (`TextFormField` inside a `Form`), AppBar, Chip, Dialog, ListTile,
 CircularProgressIndicator, LinearProgressIndicator, Tooltip.
@@ -50,10 +54,11 @@ scroll views, TabBar / TabBarView.
 
 ```
 lib/
-  main.dart                  app entry, theme, initial route
+  main.dart                  app entry, theme, initial route, storage bootstrap
   app_routes.dart            page navigation table (named routes)
   data/
     record_manager.dart      in-memory store (List only) + dashboard stats
+    record_storage.dart      saves / restores the store as JSON
     sample_data.dart         hardcoded sample sections/students/scores
   models/
     student.dart             student + averages + attendance logic
@@ -62,9 +67,23 @@ lib/
     attendance.dart          attendance status + date helpers
   screens/                   7 screens
   theme/app_theme.dart       Material 3 theme
-  widgets/                   avatar, status chip, stat card, empty state
-test/widget_test.dart        20 unit + widget tests
+  utils/
+    picture_service.dart     picks a photo and stores it as a small data URI
+  widgets/                   avatar, picture, status chip, stat card, empty state
+test/widget_test.dart                 21 unit + widget tests
+test/custom_section_and_picture_test.dart  23 custom section / picture tests
 ```
+
+## Profile pictures
+
+`screens/student_form_screen.dart` has a **Choose photo** button (and a camera
+button on phones). `utils/picture_service.dart` decodes the picked file, scales
+it down to 192px and stores it on the student as a `data:` URI - that works on
+every platform, unlike a file path, which a browser cannot open.
+`widgets/student_picture.dart` draws it with `BoxFit.cover` inside a circle and
+falls back to the initials badge when the picture is missing or broken, so a bad
+value can never break a student page. A picture link (`https://...`) can still be
+typed instead.
 
 ## How to run
 
@@ -119,7 +138,7 @@ to `main`:
 
 ```bash
 flutter analyze             # static analysis, should report no issues
-flutter test                # 20 tests
+flutter test                # 44 tests
 ```
 
 ## How to build the APK

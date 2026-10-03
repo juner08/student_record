@@ -65,6 +65,8 @@ class _ScoreFormScreenState extends State<ScoreFormScreen> {
       double.parse(_scoreController.text.trim()),
       double.parse(_maxController.text.trim()),
     );
+    // The score was written straight onto the student, so persist it.
+    _db.save();
     Navigator.of(context).pop(true);
   }
 
